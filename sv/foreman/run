@@ -1,0 +1,9 @@
+#!/bin/sh
+
+#wait for mysql to start
+sv start mysql || exit 1
+mysqladmin --wait=5 ping
+
+cd /huginn
+exec 2>&1
+exec foreman start 
