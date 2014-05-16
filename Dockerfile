@@ -1,4 +1,4 @@
-FROM ubuntu
+FROM ubuntu:14.04
  
 RUN apt-get update
 
@@ -9,31 +9,30 @@ CMD /usr/sbin/runsvdir-start
 #SSHD
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server &&	mkdir -p /var/run/sshd && \
     echo 'root:root' |chpasswd
+RUN sed -i "s/session.*required.*pam_loginuid.so/#session    required     pam_loginuid.so/" /etc/pam.d/sshd
+RUN sed -i "s/PermitRootLogin without-password/#PermitRootLogin without-password/" /etc/ssh/sshd_config
 
 #Utilities
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y vim less net-tools inetutils-ping curl git telnet nmap socat dnsutils netcat tree htop unzip sudo
-
-#mysql
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y vim less net-tools inetutils-ping curl git telnet nmap socat dnsutils netcat tree htop unzip sudo software-properties-common
 
 #ruby
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y ruby1.9.3 ruby1.9.1-dev rubygems
-RUN apt-get remove -y libruby1.8 ruby1.8 ruby1.8-dev rubygems1.8
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y ruby1.9.3 ruby1.9.1-dev
 RUN gem install rake bundle --no-rdoc --no-ri
 
-#mysql2
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libmysqlclient-dev
+#mysql
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server mysql-client libmysqlclient-dev
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential
+
 RUN gem install mysql2
 
 #huginn
 RUN git clone git://github.com/cantino/huginn.git
 RUN cd huginn && bundle
 
-#Configuration
-ADD . /docker
+#Add runit services
+ADD sv /etc/service 
 
-#Runit Automatically setup all services in the sv directory
-RUN for dir in /docker/sv/*; do echo $dir; chmod +x $dir/run $dir/log/run; ln -s $dir /etc/service/; done
+#Configuration
 
 #env file
 RUN cd /huginn && \
@@ -48,6 +47,3 @@ RUN mysqld_safe & mysqladmin --wait=5 ping && \
     bundle exec rake db:seed && \
     mysqladmin shutdown
 
-ENV HOME /root
-WORKDIR /root
-EXPOSE 22
